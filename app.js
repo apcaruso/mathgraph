@@ -1292,8 +1292,13 @@
       const BORDO = 6;
       const GX = 26;
       const SPAZIO_RIGHE = 74;
-      const colonne = Math.max(2, Math.min(6, Math.floor((W - 2 * BORDO + GX) / (175 + GX))));
-      const larg = Math.min(240, Math.floor((W - 2 * BORDO - (colonne - 1) * GX) / colonne));
+      // Ogni riquadro deve contenere la parola più lunga del suo titolo senza spezzarla.
+      const minimo = Math.max.apply(null, [175].concat(DATI.aree.map((a) => {
+        nodi[a.id].style.width = 'min-content';
+        return nodi[a.id].offsetWidth;
+      })));
+      const colonne = Math.max(1, Math.min(6, Math.floor((W - 2 * BORDO + GX) / (minimo + GX))));
+      const larg = Math.max(minimo, Math.min(240, Math.floor((W - 2 * BORDO - (colonne - 1) * GX) / colonne)));
       const pos = {};
       let y = 0;
       DATI.famiglie.forEach((f) => {
