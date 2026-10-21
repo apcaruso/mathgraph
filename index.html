@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mappa della matematica</title>
+  <meta name="description" content="Tutta la matematica come una rete di idee collegate, pensata per persone con DSA.">
+  <link rel="stylesheet" href="vendor/katex/katex.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <button type="button" class="salta" id="salta">Vai al contenuto</button>
+
+  <header class="testata">
+    <div class="testata-interna">
+      <a class="marchio" href="#/">
+        <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true" focusable="false">
+          <g fill="none" stroke="#2a2520" stroke-width="2"><path d="M9 25 L17 9 L26 22 Z"/></g>
+          <circle cx="9" cy="25" r="5" fill="#2d5f9a" stroke="#2a2520" stroke-width="1.5"/>
+          <rect x="12.5" y="4.5" width="9" height="9" rx="1" fill="#2f7a4b" stroke="#2a2520" stroke-width="1.5"/>
+          <polygon points="26,16 31.5,22 26,28 20.5,22" fill="#b04a1e" stroke="#2a2520" stroke-width="1.5"/>
+        </svg>
+        Mappa della matematica
+      </a>
+
+      <div id="ricerca-globale" class="ricerca-contenitore"></div>
+
+      <div class="strumenti">
+        <label>Mostra fino al livello
+          <select id="filtro-livello">
+            <option value="1">1 · scuola media</option>
+            <option value="2">2 · scuola superiore</option>
+            <option value="3">3 · università, primi anni</option>
+            <option value="4">4 · tutto, fino alla ricerca</option>
+          </select>
+        </label>
+        <button type="button" class="pulsante" id="testo-meno" aria-label="Testo più piccolo">A−</button>
+        <button type="button" class="pulsante" id="testo-piu" aria-label="Testo più grande">A+ <span class="etichetta-lunga">Testo più grande</span></button>
+        <button type="button" class="pulsante" id="leggi" hidden>
+          <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 7h3l5-4v14l-5-4H3z" fill="currentColor"/><path d="M14 6.5a5 5 0 0 1 0 7M16.5 4a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <span>Leggi ad alta voce</span>
+        </button>
+        <button type="button" class="pulsante" id="apri-legenda" aria-expanded="false" aria-controls="pannello-legenda">Legenda</button>
+      </div>
+    </div>
+    <div id="pannello-legenda" class="pannello-legenda" hidden></div>
+  </header>
+
+  <div class="navigazione">
+    <nav class="briciole" id="briciole" aria-label="Sei qui"></nav>
+    <nav class="scia" id="scia" aria-label="Da dove vengo" hidden></nav>
+  </div>
+
+  <main id="contenuto">
+    <noscript><p>Questa pagina ha bisogno di JavaScript per funzionare. Attivalo nel browser e ricarica la pagina.</p></noscript>
+  </main>
+
+  <footer class="piede">
+    <nav aria-label="Altre pagine">
+      <ul>
+        <li><a href="#/aree">Esplora le aree</a></li>
+        <li><a href="#/obiettivo">Voglio arrivare a…</a></li>
+        <li><a href="#/domande">Grandi domande</a></li>
+        <li><a href="#/mappa">Mappa completa</a></li>
+        <li><a href="#/controllo">Controllo dei dati</a></li>
+      </ul>
+    </nav>
+  </footer>
+
+  <div id="annunci" class="solo-lettori" aria-live="polite"></div>
+
+  <!-- Librerie locali -->
+  <script src="vendor/katex/katex.min.js"></script>
+  <script src="vendor/dagre/dagre.min.js"></script>
+
+  <!-- Dati: il registro va caricato per primo -->
+  <script src="data/registro.js"></script>
+  <script src="data/struttura.js"></script>
+  <script src="data/concetti/logica.js"></script>
+  <script src="data/concetti/categorie.js"></script>
+  <script src="data/concetti/numeri.js"></script>
+  <script src="data/concetti/algebra-elementare.js"></script>
+  <script src="data/concetti/teoria-numeri.js"></script>
+  <script src="data/concetti/algebra-astratta.js"></script>
+  <script src="data/concetti/algebra-lineare.js"></script>
+  <script src="data/concetti/geometria-euclidea.js"></script>
+  <script src="data/concetti/geometria-analitica.js"></script>
+  <script src="data/concetti/geometrie-non-euclidee.js"></script>
+  <script src="data/concetti/topologia.js"></script>
+  <script src="data/concetti/geometria-differenziale.js"></script>
+  <script src="data/concetti/geometria-algebrica.js"></script>
+  <script src="data/concetti/analisi-reale.js"></script>
+  <script src="data/concetti/analisi-complessa.js"></script>
+  <script src="data/concetti/equazioni-differenziali.js"></script>
+  <script src="data/concetti/misura-funzionale.js"></script>
+  <script src="data/concetti/sistemi-dinamici.js"></script>
+  <script src="data/concetti/combinatoria.js"></script>
+  <script src="data/concetti/probabilita.js"></script>
+  <script src="data/concetti/statistica.js"></script>
+  <script src="data/concetti/teoria-giochi.js"></script>
+  <script src="data/concetti/calcolabilita.js"></script>
+  <script src="data/concetti/analisi-numerica.js"></script>
+  <script src="data/concetti/ottimizzazione.js"></script>
+  <script src="data/concetti/informazione-crittografia.js"></script>
+  <script src="data/concetti/fisica-matematica.js"></script>
+
+  <script src="controlli.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
