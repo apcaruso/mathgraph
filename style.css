@@ -793,9 +793,6 @@ td.numero, th.numero { text-align: right; font-variant-numeric: tabular-nums; }
 .piede ul { max-width: 1240px; margin: 0 auto; padding: 1rem 16px; list-style: none; display: flex; flex-wrap: wrap; gap: 0.4rem 1.6rem; }
 .piede li { margin: 0; }
 
-/* Lettura ad alta voce: il blocco che si sta leggendo */
-.in-lettura { background: var(--evidenzia); box-shadow: 0 0 0 4px var(--evidenzia); border-radius: 4px; }
-
 /* ------------------------------------------------------------------------- */
 
 @media (max-width: 720px) {

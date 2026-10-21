@@ -956,7 +956,7 @@
     const parenti = filtra(tuttiParenti);
     const nascosti = tuttiPrima.length + tuttiDopo.length + tuttiParenti.length - prima.length - dopo.length - parenti.length;
 
-    const box = h('section', { class: 'fuoco' + (parenti.length ? '' : ' senza-parenti'), 'aria-label': 'Collegamenti di ' + c.titolo, 'data-non-leggere': '' });
+    const box = h('section', { class: 'fuoco' + (parenti.length ? '' : ' senza-parenti'), 'aria-label': 'Collegamenti di ' + c.titolo });
     box.appendChild(s('svg', { class: 'fuoco-frecce', 'aria-hidden': 'true', focusable: 'false' }));
     box.appendChild(gruppoVicini('fuoco-prima', 'Serve per capirlo', prima, c.area, 'Nessun prerequisito: è un punto di partenza.'));
     box.appendChild(h('div', { class: 'fuoco-centro' },
@@ -1124,7 +1124,7 @@
   function bloccoFormula(c) {
     const f = c.formula;
     if (!f || !f.latex) return null;
-    const contenitore = h('div', { class: 'formula-katex', 'aria-hidden': 'true', 'data-non-leggere': '' });
+    const contenitore = h('div', { class: 'formula-katex', 'aria-hidden': 'true' });
     try {
       katex.render(f.latex, contenitore, { throwOnError: false, displayMode: true, output: 'html' });
     } catch (e) {
@@ -1166,7 +1166,7 @@
     const contenuto = h('article', { class: 'pagina-concetto' },
       h('header', { class: 'scheda-testata' }, h('h1', null, c.titolo), metaConcetto(c)),
       fuoco,
-      h('div', { class: 'riga-pulsanti', 'data-non-leggere': '' },
+      h('div', { class: 'riga-pulsanti' },
         h('a', { class: 'pulsante primario', href: '#/percorso/' + id }, 'Come ci arrivo?'),
         h('a', { class: 'pulsante', href: '#/obiettivo/' + id }, 'Voglio arrivare qui'),
         bottoneNoto,
@@ -1979,90 +1979,6 @@
   }
 
   // ===========================================================================
-  // Lettura ad alta voce (Web Speech API, in italiano)
-
-  const Lettore = (function () {
-    const disponibile = 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance === 'function';
-    let attivo = false;
-    let blocchi = [];
-    let indice = 0;
-    let voce = null;
-    const bottone = document.getElementById('leggi');
-
-    function scegliVoce() {
-      const voci = window.speechSynthesis.getVoices();
-      voce = voci.find((v) => v.lang === 'it-IT') || voci.find((v) => v.lang && v.lang.toLowerCase().indexOf('it') === 0) || null;
-    }
-
-    function testoLeggibile(el) {
-      const copia = el.cloneNode(true);
-      copia.querySelectorAll('[data-non-leggere], [aria-hidden="true"], .definizione, .vicino-perche, svg, .katex').forEach((n) => n.remove());
-      copia.querySelectorAll('[data-leggi-come]').forEach((n) => n.replaceWith(n.getAttribute('data-leggi-come')));
-      return copia.textContent.replace(/\s+/g, ' ').trim();
-    }
-
-    function raccogli() {
-      const radice = document.getElementById('contenuto');
-      const selettore = 'h1, h2, h3, h4, p, li, dt, dd, summary, th, td';
-      return Array.from(radice.querySelectorAll(selettore))
-        .filter((el) => !el.closest('[data-non-leggere], [aria-hidden="true"], [hidden], .risultati'))
-        .filter((el) => !el.querySelector(selettore))
-        .filter((el) => el.offsetParent !== null || el.closest('details[open]'))
-        .map((el) => ({ el, testo: testoLeggibile(el) }))
-        .filter((b) => b.testo);
-    }
-
-    function aggiornaBottone() {
-      bottone.querySelector('span').textContent = attivo ? 'Ferma la lettura' : 'Leggi ad alta voce';
-      bottone.setAttribute('aria-pressed', attivo ? 'true' : 'false');
-    }
-
-    function togliEvidenza() { document.querySelectorAll('.in-lettura').forEach((el) => el.classList.remove('in-lettura')); }
-
-    function prossimo() {
-      togliEvidenza();
-      if (!attivo || indice >= blocchi.length) { ferma(); return; }
-      const b = blocchi[indice++];
-      b.el.classList.add('in-lettura');
-      b.el.scrollIntoView({ block: 'nearest' });
-      const u = new SpeechSynthesisUtterance(b.testo);
-      u.lang = 'it-IT';
-      if (voce) u.voice = voce;
-      u.rate = 0.95;
-      u.onend = prossimo;
-      u.onerror = prossimo;
-      window.speechSynthesis.speak(u);
-    }
-
-    function avvia() {
-      blocchi = raccogli();
-      indice = 0;
-      if (!blocchi.length) return;
-      window.speechSynthesis.cancel();
-      attivo = true;
-      aggiornaBottone();
-      prossimo();
-    }
-
-    function ferma() {
-      if (!disponibile) return;
-      attivo = false;
-      window.speechSynthesis.cancel();
-      togliEvidenza();
-      aggiornaBottone();
-    }
-
-    if (disponibile) {
-      bottone.hidden = false;
-      scegliVoce();
-      if (typeof window.speechSynthesis.addEventListener === 'function') window.speechSynthesis.addEventListener('voiceschanged', scegliVoce);
-      bottone.addEventListener('click', () => (attivo ? ferma() : avvia()));
-      aggiornaBottone();
-    }
-    return { ferma, disponibile };
-  })();
-
-  // ===========================================================================
   // Legenda, filtro di livello, dimensione del testo
 
   function costruisciLegenda() {
@@ -2177,7 +2093,6 @@
   function disegna(opzioni) {
     pulizie.forEach((f) => f());
     pulizie = [];
-    Lettore.ferma();
     const grezzo = location.hash.replace(/^#\/?/, '');
     let percorso = grezzo;
     try { percorso = decodeURIComponent(grezzo); } catch (e) { /* lascia com'è */ }
