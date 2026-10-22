@@ -72,6 +72,16 @@
       scrivi(chiave, valore) {
         riserva[chiave] = valore;
         try { window.localStorage.setItem(prefisso + chiave, JSON.stringify(valore)); } catch (e) { /* va bene lo stesso */ }
+      },
+      // Avvisa quando un'altra scheda cambia il valore.
+      ascolta(chiave, fn) {
+        window.addEventListener('storage', (e) => {
+          if (e.key !== prefisso + chiave) return;
+          let v = null;
+          try { v = JSON.parse(e.newValue); } catch (err) { /* valore non valido */ }
+          riserva[chiave] = v;
+          fn(v);
+        });
       }
     };
   })();
@@ -866,11 +876,16 @@
     if (opzioni.compatto) classi[0] = 'nodo-mappa';
     if (opzioni.obiettivo) classi.push('obiettivo');
     if (opzioni.noto) classi.push('conosciuto');
-    return h('a', { class: classi.join(' '), href: opzioni.href || '#/concetto/' + c.id },
+    return h('a', Object.assign({ class: classi.join(' '), href: opzioni.href || '#/concetto/' + c.id }, opzioni.nuovaScheda ? attributiNuovaScheda() : null),
       h('span', { class: 'nodo-testa' }, iconaForma(AREE[c.area].forma, 13), h('span', null, c.titolo)),
       opzioni.compatto ? h('span', { class: 'solo-lettori' }, ', ' + AREE[c.area].titolo + ', livello ' + c.livello)
-        : h('span', { class: 'nodo-dettagli' }, AREE[c.area].breve + ' · ' + TIPI[c.tipo].toLowerCase() + ' · livello ' + c.livello));
+        : h('span', { class: 'nodo-dettagli' }, AREE[c.area].breve + ' · ' + TIPI[c.tipo].toLowerCase() + ' · livello ' + c.livello),
+      opzioni.nuovaScheda ? avvisoNuovaScheda() : null);
   }
+
+  // Nei percorsi i concetti si aprono in un'altra scheda, così il percorso resta in vista.
+  function attributiNuovaScheda() { return { target: '_blank', rel: 'noopener' }; }
+  function avvisoNuovaScheda() { return h('span', { class: 'solo-lettori' }, ' (si apre in un\'altra scheda)'); }
 
   // ===========================================================================
   // Vista a fuoco: prerequisiti a sinistra, successivi a destra, parenti sotto.
@@ -1592,7 +1607,7 @@
     const noti = insiemeNoti();
     const ids = [id].concat(antenati).filter((x) => x === id || !(stato.nascondiNotiPercorso && noti.has(x)));
     const insieme = new Set(ids);
-    const nodi = ordineValido(ids).map((x) => ({ id: x, el: nodoConcetto(perId[x], { obiettivo: x === id, noto: x !== id && noti.has(x) }) }));
+    const nodi = ordineValido(ids).map((x) => ({ id: x, el: nodoConcetto(perId[x], { obiettivo: x === id, noto: x !== id && noti.has(x), nuovaScheda: true }) }));
     const archi = [];
     ids.forEach((x) => perId[x].prerequisiti.forEach((p) => { if (insieme.has(p.id)) archi.push({ da: p.id, a: x }); }));
     const grafo = creaGrafo({ nodi, archi, direzione: 'LR', distanzaNodi: 18, distanzaRanghi: 56, etichetta: 'Catena di prerequisiti di ' + c.titolo, primo: id, scalaLeggibile: 0.85 });
@@ -1603,7 +1618,7 @@
       h('h1', null, 'Come ci arrivo? ', h('span', { class: 'solo-lettori' }, c.titolo)),
       h('p', { class: 'domanda-grande' }, c.titolo),
       h('p', { class: 'testo' }, antenati.length
-        ? 'Per arrivare a questo concetto servono ' + plurale(antenati.length, 'altro concetto', 'altri concetti') + ', da ' + plurale(aree.size, 'area', 'aree') + '. Le frecce vanno da ciò che serve a ciò che lo usa: si legge da sinistra a destra.'
+        ? 'Per arrivare a questo concetto servono ' + plurale(antenati.length, 'altro concetto', 'altri concetti') + ', da ' + plurale(aree.size, 'area', 'aree') + '. Le frecce vanno da ciò che serve a ciò che lo usa: si legge da sinistra a destra. Ogni concetto si apre in un\'altra scheda: la mappa resta qui.'
         : 'Questo concetto è un punto di partenza: non servono prerequisiti.'),
       h('div', { class: 'riga-pulsanti' },
         h('a', { class: 'pulsante primario', href: '#/obiettivo/' + id }, 'Vedilo come elenco di passi'),
@@ -1682,7 +1697,8 @@
         }
         return h('li', { class: (noto ? 'noto' : '') + (x === id ? ' obiettivo-finale' : ''), 'data-id': x },
           h('div', { class: 'passo-riga' },
-            h('a', { href: '#/concetto/' + x }, cx.titolo),
+            h('a', Object.assign({ href: '#/concetto/' + x }, attributiNuovaScheda()), cx.titolo,
+              h('span', { class: 'icona-scheda', 'aria-hidden': 'true' }, '↗'), avvisoNuovaScheda()),
             h('span', { class: 'badge', title: LIVELLI[cx.livello] }, 'Livello ' + cx.livello),
             badgeTipo(cx),
             x === id ? h('span', { class: 'badge badge-conosciuto' }, 'obiettivo') : null,
@@ -1712,7 +1728,7 @@
       h('p', { class: 'piano-sommario', role: 'status' },
         daFare.length <= 1 ? (noti.has(id) ? 'Hai segnato di conoscere già questo concetto.' : 'Ci sei: manca solo questo concetto.')
           : 'Ti servono ' + plurale(daFare.length, 'passo', 'passi') + ', compreso l\'obiettivo.'),
-      h('p', { class: 'testo nota' }, 'L\'ordine è valido: ogni concetto viene dopo quelli che servono per capirlo. Se segni «Lo so già», spariscono anche i suoi prerequisiti. Il filtro di livello qui non vale: servono tutti.'),
+      h('p', { class: 'testo nota' }, 'L\'ordine è valido: ogni concetto viene dopo quelli che servono per capirlo. Se segni «Lo so già», spariscono anche i suoi prerequisiti. Il filtro di livello qui non vale: servono tutti. Ogni concetto si apre in un\'altra scheda: questo elenco resta qui.'),
       h('div', { class: 'riga-pulsanti' },
         nascostiNoti ? bottoneMostra : null,
         stato.conosciuti.size ? bottoneAzzera : null,
@@ -2132,6 +2148,12 @@
   }
 
   window.addEventListener('hashchange', () => disegna({}));
+  // Se segni «Lo so già» nella scheda di un concetto, il percorso nell'altra scheda si aggiorna.
+  Memoria.ascolta('conosciuti', (lista) => {
+    stato.conosciuti.clear();
+    (Array.isArray(lista) ? lista : []).filter((id) => perId[id]).forEach((id) => stato.conosciuti.add(id));
+    rinfresca();
+  });
 
   // ===========================================================================
   // Avvio

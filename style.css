@@ -710,6 +710,7 @@ main h1:focus { box-shadow: none; outline: none; }
 .passi li::marker { font-weight: 700; }
 .passo-riga { display: flex; flex-wrap: wrap; gap: 0.3em 0.8em; align-items: center; }
 .passo-riga .pulsante { min-height: 40px; padding: 0.2em 0.7em; font-size: 0.9rem; }
+.icona-scheda { display: inline-block; margin-left: 0.25em; font-size: 0.85em; }
 .passi li.noto { color: var(--testo-2); }
 .passi li.obiettivo-finale { font-weight: 700; }
 
