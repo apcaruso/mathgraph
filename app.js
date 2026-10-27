@@ -729,7 +729,10 @@
       const el = e.target.closest('.nodo-grafo');
       if (!el) return;
       impostaAttuale(el.dataset.id);
-      rendiVisibile(el.dataset.id);
+      // Solo con la tastiera: col mouse il grafo non deve spostarsi sotto il puntatore, o il clic va a vuoto.
+      let daTastiera = true;
+      try { daTastiera = el.matches(':focus-visible'); } catch (err) { /* selettore non supportato */ }
+      if (daTastiera) rendiVisibile(el.dataset.id);
     });
     strato.addEventListener('keydown', (e) => {
       const el = e.target.closest('.nodo-grafo');
