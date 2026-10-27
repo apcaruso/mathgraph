@@ -1188,7 +1188,8 @@
         h('a', { class: 'pulsante primario', href: '#/percorso/' + id }, 'Come ci arrivo?'),
         h('a', { class: 'pulsante', href: '#/obiettivo/' + id }, 'Voglio arrivare qui'),
         bottoneNoto,
-        h('a', { class: 'pulsante', href: '#/mappa/' + id }, 'Vedi nella mappa completa')),
+        h('a', { class: 'pulsante', href: '#/mappa/' + id }, 'Vedi nella mappa completa'),
+        bottonePrompt(obiettivoPrompt('concetto', id))),
       h('div', { class: 'scheda' },
         h('p', { class: 'domanda-grande' }, c.domanda ? arricchisci(c.domanda, id) : h('span', { class: 'segnaposto' }, 'Qui ci sarà la domanda da cui nasce «' + c.titolo + '».')),
         sezione('Un esempio', paragrafi(c.esempio, id, 'Qui ci sarà un esempio concreto.')),
@@ -1583,6 +1584,7 @@
       h('p', null, badgeArea(a.id), ' ', h('a', { href: '#/area/' + a.id }, a.titolo)),
       h('p', { class: 'domanda-grande' }, x.domanda),
       h('p', { class: 'descrizione' }, x.descrizione || h('span', { class: 'segnaposto' }, 'Descrizione in arrivo.')),
+      tutti.length ? h('div', { class: 'riga-pulsanti' }, bottonePrompt(obiettivoPrompt('argomento', id))) : null,
       h('h2', null, 'I concetti'),
       grafo.radice,
       legendaArchi(false, false),
@@ -2003,6 +2005,312 @@
   }
 
   // ===========================================================================
+  // Prompt per un'IA: farsi spiegare un concetto o un argomento con il metodo Feynman.
+  // Il percorso è la catena dei prerequisiti in un ordine valido, senza quello che sai già.
+
+  function obiettivoPrompt(tipo, id) {
+    if (tipo === 'concetto' && perId[id]) return { tipo, id, titolo: perId[id].titolo, ids: [id] };
+    if (tipo === 'argomento' && perArgomento[id]) return { tipo, id, titolo: ARGOMENTI[id].titolo, ids: perArgomento[id].map((c) => c.id) };
+    return null;
+  }
+
+  // Dai link: #/concetto/…, #/mappa/… (un concetto nella mappa completa), #/argomento/…
+  function obiettivoDaLink(link) {
+    const m = (link.getAttribute('href') || '').match(/^#\/(concetto|mappa|argomento)\/([a-z0-9-]+)$/);
+    return m ? obiettivoPrompt(m[1] === 'argomento' ? 'argomento' : 'concetto', m[2]) : null;
+  }
+
+  function percorsoPrompt(ob) {
+    const noti = insiemeNoti();
+    // Il concetto scelto resta sempre. Di un argomento restano i concetti che non sai già.
+    let obiettivi = ob.tipo === 'concetto' ? ob.ids : ob.ids.filter((x) => !noti.has(x));
+    if (!obiettivi.length) obiettivi = ob.ids;
+    const tutti = new Set(ob.ids);
+    ob.ids.forEach((x) => Object.keys(INDICE.antenati(x)).forEach((a) => tutti.add(a)));
+    const dentro = new Set(obiettivi);
+    obiettivi.forEach((x) => Object.keys(INDICE.antenati(x)).forEach((a) => { if (!noti.has(a)) dentro.add(a); }));
+    const ordine = ordineValido(Array.from(dentro), true);
+    // Tra le cose che sai già, solo quelle su cui il percorso si appoggia direttamente.
+    const appoggi = new Set(ob.ids.filter((x) => !dentro.has(x)));
+    ordine.forEach((x) => perId[x].prerequisiti.forEach((p) => { if (!dentro.has(p.id)) appoggi.add(p.id); }));
+    return { ordine, obiettivi: new Set(obiettivi), appoggi: ordineValido(Array.from(appoggi)), esclusi: tutti.size - dentro.size };
+  }
+
+  function testoPrompt(ob) {
+    const p = percorsoPrompt(ob);
+    const numero = {};
+    p.ordine.forEach((x, i) => { numero[x] = i + 1; });
+    const unaRiga = (t) => testoSemplice(t).replace(/\s*\n+\s*/g, ' ').trim();
+    const senzaPunto = (t) => unaRiga(t).replace(/[.\s]+$/, '');
+    const formula = (f) => '$' + f.latex + '$' + (f.come_si_legge ? ' (si legge: «' + senzaPunto(f.come_si_legge) + '»)' : '');
+    const piano = p.ordine.length > 3;
+    const unita = piano ? 'tappa' : p.ordine.length > 1 ? 'concetto' : 'passo';
+    const r = [];
+
+    if (ob.tipo === 'concetto') {
+      r.push('Vorrei capire «' + ob.titolo + '». Spiegamelo con il metodo Feynman, partendo dalle basi che mi servono.');
+    } else {
+      r.push('Vorrei capire l\'argomento «' + ob.titolo + '», dell\'area «' + AREE[ARGOMENTI[ob.id].area].titolo + '». Spiegamelo con il metodo Feynman, partendo dalle basi che mi servono.');
+    }
+    r.push('Il percorso in fondo viene da una mappa della matematica. Elenca in ordine i concetti che mi servono: ognuno viene dopo quelli su cui si appoggia.',
+      '',
+      '## Come spiegare',
+      '- Usa parole semplici, come con una persona intelligente che non ha mai studiato questo argomento.',
+      '- Presenta ogni concetto come la risposta alla sua domanda.',
+      '- Parti sempre da un esempio concreto, con numeri o oggetti veri. Solo dopo passa all\'idea generale.',
+      '- Usa analogie con la vita di tutti i giorni. Di\' anche dove l\'analogia smette di funzionare.',
+      '- Spiega ogni termine tecnico la prima volta che lo usi.',
+      '- Collega ogni concetto a quelli già spiegati: di\' cosa riprendi e perché serve.',
+      '- Se una spiegazione diventa complicata, fermati e cerca un modo più semplice. È il cuore del metodo Feynman.',
+      '',
+      '## Le formule, un pezzo alla volta',
+      '1. Prima di\' a parole che cosa racconta la formula.',
+      '2. Poi fai il calcolo su un caso piccolo, con numeri veri, senza simboli.',
+      '3. Poi costruisci la formula un pezzo alla volta, con un solo simbolo nuovo per volta.',
+      '4. Per ogni simbolo di\' cosa rappresenta e come si legge ad alta voce.',
+      '5. Alla fine rileggi tutta la formula a parole. Poi usala in un esempio svolto, un passaggio per riga.',
+      '',
+      '## Come scrivere',
+      '- Frasi brevi, al massimo 20 parole. Paragrafi di poche righe, con titoli chiari.',
+      '- Tono adulto e rispettoso, mai infantile.',
+      '- Non scrivere «è facile», «ovviamente», «banalmente» o «si vede subito».',
+      '- Niente corsivo e niente parole tutte in maiuscolo. Usa il grassetto per i termini nuovi.',
+      '',
+      '## Come procedere');
+    if (piano) {
+      r.push('- Segui l\'ordine del percorso.',
+        '- Per prima cosa mostrami solo il piano: raggruppa i ' + p.ordine.length + ' concetti in tappe di 2-4 concetti vicini, con un titolo per ogni tappa. Poi fermati.',
+        '- Io ti dirò se posso saltare qualche tappa. Poi spiega una tappa alla volta.');
+    } else {
+      r.push(p.ordine.length > 1 ? '- Spiega un concetto alla volta, nell\'ordine del percorso.' : '- Procedi un passo alla volta: prima l\'esempio, poi l\'idea, poi la formula se c\'è.');
+    }
+    r.push('- Alla fine di ogni ' + unita + ' fammi una o due domande semplici, per controllare che ho capito. Aspetta la mia risposta prima di andare avanti.',
+      '- Se sbaglio o rispondo a metà, rispiega in un altro modo, con un altro esempio.',
+      '- Le descrizioni del percorso servono solo a capire di quale idea si parla. Spiega con parole tue, e più a fondo.',
+      '- Se secondo te al percorso manca un passaggio necessario, aggiungilo e dimmelo.',
+      '- Quando arriviamo all\'obiettivo, chiedimi di spiegarlo con parole mie, come se lo insegnassi a qualcuno. Poi dimmi cosa manca e cosa non è preciso. È l\'ultimo passo del metodo Feynman.');
+
+    if (p.appoggi.length) {
+      r.push('', '## Cosa so già',
+        'Queste idee le conosco già: ' + p.appoggi.map((x) => perId[x].titolo).join(', ') + '. Non spiegarle. Se servono, ricordale in una frase.');
+    }
+
+    r.push('', '## L\'obiettivo');
+    if (ob.tipo === 'concetto') {
+      const c = perId[ob.id];
+      r.push('«' + c.titolo + '»: ' + TIPI[c.tipo].toLowerCase() + ' dell\'area «' + AREE[c.area].titolo + '», argomento «' +
+        ARGOMENTI[c.argomento].titolo + '», livello ' + c.livello + ' (' + LIVELLI[c.livello] + ').');
+      if (c.tipo === 'problema-aperto') r.push('È un problema aperto: nessuno l\'ha ancora risolto. Spiegami cosa dice, perché è importante e cosa si sa finora.');
+      if (c.domanda) r.push('Domanda da cui nasce: ' + unaRiga(c.domanda));
+      if (c.esempio) r.push('Un esempio: ' + unaRiga(c.esempio));
+      if (c.idea) r.push('L\'idea: ' + unaRiga(c.idea));
+      if (c.formula && c.formula.latex) {
+        r.push('Formula: ' + formula(c.formula));
+        if (c.formula.a_parole) r.push('A parole: ' + unaRiga(c.formula.a_parole));
+      }
+    } else {
+      const x = ARGOMENTI[ob.id];
+      r.push('L\'argomento «' + x.titolo + '», dell\'area «' + AREE[x.area].titolo + '».');
+      if (x.domanda) r.push('Domanda da cui nasce: ' + unaRiga(x.domanda));
+      if (x.descrizione) r.push('Di cosa parla: ' + unaRiga(x.descrizione));
+      r.push('Concetti dell\'argomento da spiegare: ' + p.ordine.filter((id) => p.obiettivi.has(id)).map((id) => perId[id].titolo).join(', ') +
+        '. Nel percorso sono segnati come obiettivo.');
+    }
+
+    r.push('', '## Il percorso: ' + plurale(p.ordine.length, 'concetto', 'concetti'));
+    p.ordine.forEach((id) => {
+      const c = perId[id];
+      const obiettivo = p.obiettivi.has(id);
+      r.push('');
+      if (obiettivo && ob.tipo === 'concetto') {
+        r.push(numero[id] + '. ' + c.titolo + ' · obiettivo, descritto sopra');
+      } else {
+        r.push(numero[id] + '. ' + c.titolo + ' · ' + AREE[c.area].titolo + ' · livello ' + c.livello +
+          (c.tipo !== 'concetto' ? ' · ' + TIPI[c.tipo].toLowerCase() : '') + (obiettivo ? ' · obiettivo' : ''));
+        if (c.domanda) r.push('   Domanda: ' + unaRiga(c.domanda));
+        r.push('   In breve: ' + definizioneBreve(c));
+        if (c.formula && c.formula.latex) r.push('   Formula: ' + formula(c.formula));
+      }
+      if (c.prerequisiti.length) {
+        r.push('   Si appoggia su:');
+        c.prerequisiti.forEach((q) => {
+          const dove = numero[q.id] ? 'n. ' + numero[q.id] : 'lo so già';
+          r.push('   - ' + perId[q.id].titolo + ' (' + dove + ')' + (q.perche ? ' — ' + unaRiga(q.perche) : ''));
+        });
+      }
+    });
+    r.push('', piano ? 'Comincia dal piano delle tappe.' : 'Comincia dal primo concetto.');
+    return { testo: r.join('\n'), passi: p.ordine.length, esclusi: p.esclusi };
+  }
+
+  // Prima l'API degli appunti, poi il vecchio metodo con una casella di testo nascosta.
+  function copiaNegliAppunti(testo) {
+    const vecchioMetodo = () => {
+      const attivo = document.activeElement;
+      const area = h('textarea', { class: 'solo-lettori', readonly: true, 'aria-hidden': 'true', tabindex: '-1' });
+      area.value = testo;
+      document.body.appendChild(area);
+      area.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { /* non supportato */ }
+      area.remove();
+      if (attivo && attivo.focus) attivo.focus({ preventScroll: true });
+      return ok;
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(testo).then(() => true, vecchioMetodo);
+    }
+    return Promise.resolve(vecchioMetodo());
+  }
+
+  let avvisoCopia = null;
+  let tempoAvviso = null;
+  // Avviso visibile in basso; ai lettori di schermo arriva con annuncia().
+  function mostraAvviso(testo) {
+    if (!avvisoCopia) {
+      avvisoCopia = h('div', { class: 'avviso-copia', 'aria-hidden': 'true', hidden: true });
+      document.body.appendChild(avvisoCopia);
+    }
+    avvisoCopia.textContent = testo;
+    avvisoCopia.hidden = false;
+    clearTimeout(tempoAvviso);
+    tempoAvviso = setTimeout(() => { avvisoCopia.hidden = true; }, 7000);
+    annuncia(testo);
+  }
+
+  function copiaPrompt(ob, origine) {
+    const prompt = testoPrompt(ob);
+    copiaNegliAppunti(prompt.testo).then((ok) => {
+      if (!ok) { finestraPrompt(ob, prompt, origine, true); return; }
+      mostraAvviso('Prompt copiato, con un percorso di ' + plurale(prompt.passi, 'concetto', 'concetti') +
+        '. Incollalo nella chat di un\'intelligenza artificiale, come ChatGPT, Claude o Gemini.');
+    });
+  }
+
+  // Il prompt da leggere, cambiare e copiare. Serve anche quando la copia automatica non riesce.
+  function finestraPrompt(ob, prompt, origine, copiaFallita) {
+    const area = h('textarea', { id: 'testo-prompt', spellcheck: 'false' });
+    area.value = prompt.testo;
+    const copia = h('button', { type: 'button', class: 'pulsante primario' }, 'Copia');
+    const chiudi = h('button', { type: 'button', class: 'pulsante' }, 'Chiudi');
+    const dialogo = h('dialog', { class: 'finestra-prompt', 'aria-labelledby': 'titolo-finestra-prompt' },
+      h('h2', { id: 'titolo-finestra-prompt' }, 'Prompt per «' + ob.titolo + '»'),
+      h('p', null, copiaFallita
+        ? 'Non sono riuscito a copiarlo da solo. Il testo è già selezionato: premi Ctrl e C, oppure Cmd e C sul Mac.'
+        : 'Il percorso ha ' + plurale(prompt.passi, 'concetto', 'concetti') +
+          (prompt.esclusi ? ' e lascia fuori ' + plurale(prompt.esclusi, 'concetto che sai', 'concetti che sai') + ' già' : '') +
+          '. Puoi cambiare il testo prima di copiarlo.'),
+      h('label', { for: 'testo-prompt', class: 'solo-lettori' }, 'Testo del prompt'),
+      area,
+      h('div', { class: 'riga-pulsanti' }, copia, chiudi));
+    copia.addEventListener('click', () => {
+      copiaNegliAppunti(area.value).then((ok) => {
+        if (ok) {
+          dialogo.close();
+          mostraAvviso('Prompt copiato. Incollalo nella chat di un\'intelligenza artificiale, come ChatGPT, Claude o Gemini.');
+        } else {
+          area.focus();
+          area.select();
+          annuncia('Non sono riuscito a copiarlo. Il testo è selezionato: premi Ctrl e C.');
+        }
+      });
+    });
+    chiudi.addEventListener('click', () => dialogo.close());
+    dialogo.addEventListener('close', () => {
+      dialogo.remove();
+      if (origine && origine.isConnected) origine.focus({ preventScroll: true });
+    });
+    if (avvisoCopia) avvisoCopia.hidden = true;
+    document.body.appendChild(dialogo);
+    dialogo.showModal();
+    area.scrollTop = 0;
+    if (copiaFallita) { area.focus(); area.select(); } else area.focus({ preventScroll: true });
+  }
+
+  // Bottone per le schede di concetti e argomenti: sul telefono il clic destro non c'è.
+  function bottonePrompt(ob) {
+    const bottone = h('button', { type: 'button', class: 'pulsante' }, 'Copia il prompt per un\'IA');
+    bottone.addEventListener('click', () => copiaPrompt(ob, bottone));
+    return bottone;
+  }
+
+  // Menu del clic destro su un concetto o un argomento. Con Maiusc resta il menu del browser.
+  const MenuPrompt = (function () {
+    let menu = null;
+    let origine = null;
+
+    function chiudi(rimettiFocus) {
+      if (!menu) return;
+      menu.remove();
+      menu = null;
+      if (rimettiFocus && origine && origine.isConnected) origine.focus({ preventScroll: true });
+      origine = null;
+    }
+
+    function apri(link, ob, x, y) {
+      chiudi(false);
+      origine = link;
+      const esclusi = percorsoPrompt(ob).esclusi;
+      const idNota = 'nota-menu-prompt';
+      const voce = (testo, azione, descrizione) => {
+        const b = h('button', { type: 'button', role: 'menuitem', tabindex: '-1', 'aria-describedby': descrizione || null }, testo);
+        b.addEventListener('click', () => {
+          const da = origine;
+          chiudi(true);
+          azione(da);
+        });
+        return b;
+      };
+      menu = h('div', { class: 'menu-prompt', role: 'menu', 'aria-label': ob.titolo },
+        h('p', { class: 'menu-titolo', 'aria-hidden': 'true' }, ob.titolo),
+        voce('Copia il prompt per un\'IA', (da) => copiaPrompt(ob, da), idNota),
+        voce('Leggi il prompt prima di copiarlo', (da) => finestraPrompt(ob, testoPrompt(ob), da, false)),
+        voce('Apri in un\'altra scheda', () => window.open(link.href, '_blank', 'noopener')),
+        h('p', { class: 'menu-nota', id: idNota, 'aria-hidden': 'true' },
+          (ob.tipo === 'concetto' ? 'Ti fa spiegare il concetto con tutto quello che serve per capirlo.' : 'Ti fa spiegare l\'argomento con tutto quello che serve per capirlo.') +
+          (esclusi ? ' Lascia fuori ' + plurale(esclusi, 'concetto che sai', 'concetti che sai') + ' già.' : '')),
+        h('p', { class: 'menu-nota', 'aria-hidden': 'true' }, 'Per il menu del browser: Maiusc e clic destro.'));
+      document.body.appendChild(menu);
+
+      // Da tastiera il menu si apre sotto il link, col mouse dove si trova il puntatore.
+      const r = link.getBoundingClientRect();
+      const dentro = x >= r.left - 2 && x <= r.right + 2 && y >= r.top - 2 && y <= r.bottom + 2;
+      let sopra = y;
+      if (!dentro) { x = r.left; y = r.bottom; sopra = r.top; }
+      const w = menu.offsetWidth;
+      const hh = menu.offsetHeight;
+      menu.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + 'px';
+      menu.style.top = Math.max(8, y + hh > window.innerHeight - 8 ? sopra - hh : y) + 'px';
+      voci()[0].focus({ preventScroll: true });
+    }
+
+    function voci() { return Array.from(menu.querySelectorAll('[role="menuitem"]')); }
+
+    document.addEventListener('keydown', (e) => {
+      if (!menu) return;
+      const lista = voci();
+      const i = lista.indexOf(document.activeElement);
+      if (e.key === 'Escape' || e.key === 'Tab') { e.preventDefault(); chiudi(true); } else if (e.key === 'ArrowDown') { e.preventDefault(); lista[(i + 1) % lista.length].focus(); } else if (e.key === 'ArrowUp') { e.preventDefault(); lista[(i - 1 + lista.length) % lista.length].focus(); } else if (e.key === 'Home') { e.preventDefault(); lista[0].focus(); } else if (e.key === 'End') { e.preventDefault(); lista[lista.length - 1].focus(); }
+    });
+    document.addEventListener('pointerdown', (e) => { if (menu && !menu.contains(e.target)) chiudi(false); }, true);
+    window.addEventListener('blur', () => chiudi(false));
+    window.addEventListener('resize', () => chiudi(false));
+    window.addEventListener('scroll', () => chiudi(false));
+    window.addEventListener('hashchange', () => chiudi(false));
+
+    return { apri, chiudi };
+  })();
+
+  document.addEventListener('contextmenu', (e) => {
+    if (e.shiftKey) return;
+    const link = e.target.closest ? e.target.closest('a[href]') : null;
+    const ob = link && obiettivoDaLink(link);
+    if (!ob) return;
+    e.preventDefault();
+    MenuPrompt.apri(link, ob, e.clientX, e.clientY);
+  });
+
+  // ===========================================================================
   // Legenda, filtro di livello, dimensione del testo
 
   function costruisciLegenda() {
@@ -2020,7 +2328,9 @@
           h('li', null, h('span', { class: 'badge badge-tipo tipo-problema-aperto' }, 'Problema aperto'), 'una domanda che nessuno ha ancora risolto'))),
       h('div', null,
         h('h2', null, 'Livelli'),
-        h('ul', null, [1, 2, 3, 4].map((l) => h('li', null, h('span', { class: 'badge' }, 'Livello ' + l), LIVELLI[l])))),
+        h('ul', null, [1, 2, 3, 4].map((l) => h('li', null, h('span', { class: 'badge' }, 'Livello ' + l), LIVELLI[l]))),
+        h('h2', null, 'Farti spiegare un concetto'),
+        h('p', null, 'Clic destro su un concetto o su un argomento: copi un prompt per un\'intelligenza artificiale. Contiene tutto quello che serve per capirlo, in ordine, senza quello che hai segnato come già noto.')),
       h('div', null,
         h('h2', null, 'Aree: colore e forma'),
         DATI.famiglie.map((f) => h('div', { class: 'famiglia-legenda fam-' + f.id },

@@ -795,6 +795,80 @@ td.numero, th.numero { text-align: right; font-variant-numeric: tabular-nums; }
 .piede li { margin: 0; }
 
 /* ------------------------------------------------------------------------- */
+/* Prompt per un'IA: menu del clic destro, finestra del testo, avviso */
+
+.menu-prompt {
+  position: fixed;
+  z-index: 90;
+  min-width: 16rem;
+  max-width: min(22rem, calc(100vw - 16px));
+  padding: 0.35em;
+  background: var(--superficie);
+  border: 2px solid var(--bordo-forte);
+  border-radius: var(--raggio);
+  box-shadow: 0 8px 24px rgba(42, 37, 32, 0.18);
+}
+.menu-prompt .menu-titolo { margin: 0.2em 0.6em 0.3em; font-weight: 700; line-height: 1.3; }
+.menu-prompt [role='menuitem'] {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.4em 0.6em;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.menu-prompt [role='menuitem']:hover { background: var(--sfondo-2); }
+.menu-prompt [role='menuitem']:focus { background: var(--evidenzia); outline: 2px solid var(--testo); outline-offset: 0; box-shadow: none; }
+.menu-prompt .menu-nota { margin: 0.4em 0.6em 0.2em; font-size: 0.85rem; line-height: 1.4; color: var(--testo-2); }
+
+.finestra-prompt {
+  width: min(46rem, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 1rem 1.2rem;
+  background: var(--superficie);
+  color: var(--testo);
+  border: 2px solid var(--bordo-forte);
+  border-radius: var(--raggio);
+}
+.finestra-prompt::backdrop { background: rgba(42, 37, 32, 0.45); }
+.finestra-prompt h2 { margin-top: 0.2em; }
+.finestra-prompt textarea {
+  display: block;
+  width: 100%;
+  height: min(50vh, 28rem);
+  padding: 0.5em 0.7em;
+  border: 2px solid var(--bordo-forte);
+  border-radius: var(--raggio);
+  background: #fffefa;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.avviso-copia {
+  position: fixed;
+  z-index: 95;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 0.7em 1.1em;
+  background: var(--testo);
+  color: var(--sfondo);
+  border-radius: var(--raggio);
+  box-shadow: 0 8px 24px rgba(42, 37, 32, 0.25);
+  line-height: 1.45;
+}
+.avviso-copia[hidden] { display: none; }
+
+/* ------------------------------------------------------------------------- */
 
 @media (max-width: 720px) {
   h1 { font-size: 1.55rem; }
@@ -815,6 +889,6 @@ td.numero, th.numero { text-align: right; font-variant-numeric: tabular-nums; }
 }
 
 @media print {
-  .testata, .navigazione, .fuoco, .grafo, .riga-pulsanti { display: none; }
+  .testata, .navigazione, .fuoco, .grafo, .riga-pulsanti, .menu-prompt, .avviso-copia { display: none; }
   body { background: #fff; }
 }
